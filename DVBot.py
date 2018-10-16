@@ -6,9 +6,11 @@ TOKEN = ''
 FIELDS = 'type,message,story,link,created_time,full_picture,name'
 GROUP_ID = 0
 API_KEY = ''
+CHANNEL = {}
+
+json_data = {}
 
 client = discord.Client()
-channel = {}
 
 @client.event
 async def on_message(message):
@@ -24,21 +26,23 @@ async def on_message(message):
 	if command.startswith('help'):
 		embed = discord.Embed(title="Help", colour=discord.Colour(0xE57A07), description="")
 		embed.add_field(name=":DV: help", value="Display this message", inline=False)
+		embed.add_field(name=":DV: set channel", value="Sets the channel to push the Facebook feed onto. Using more than once will probably break everything.", inline=False)
 
 		await client.send_message(destination=message.channel, embed=embed)
 		await client.delete_message(message)
 
 	if command.startswith('set channel'):
-		global channel
-		channel = message.channel
+		global CHANNEL
+		CHANNEL = message.channel
+
 		await send("Channel set", message)
 		await client.delete_message(message)
-		
+
 		while True:
-			print("Posting")
 			await postLatestPost()
 			await asyncio.sleep(144)
-	
+
+
 async def send(msg, message):
 	print("-> %s" % msg.format(message))
 	return await client.send_message(message.channel, msg.format(message))
@@ -60,23 +64,20 @@ def getCommand(message):
 
 
 async def postLatestPost():
-	file_name = "timestamp"
-	with open(file_name, 'r') as f:
-		limit = f.read()
+	limit = json_data["timestamp"]
 	
 	data = api.get_connections(GROUP_ID, "feed", fields=FIELDS, since=limit)["data"]
 	
-	if not channel:
+	if not CHANNEL:
 		return
 	if len(data) == 0:
 		return
 
 	for post in data[::-1]:
 		embed = createEmbedFromPost(post)
-		await client.send_message(destination=channel, embed=embed)
+		await client.send_message(destination=CHANNEL, embed=embed)
 	
-	with open(file_name, 'w') as f:
-		f.write(addSecond(data[0]["created_time"]))
+	save("timestamp", addSecond(data[0]["created_time"]))
 
 
 def parseDate(timestamp):
@@ -87,6 +88,13 @@ def parseDate(timestamp):
 def addSecond(timestamp):
 	time = datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z") + datetime.timedelta(seconds=1)
 	return time.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def save(var, data):
+	json_data[var] = data
+	with open('DVD.json', 'w') as outfile:
+		json.dump(json_data, outfile)
+
 
 def createEmbedFromPost(post):
 	post_type = post["type"]
@@ -126,10 +134,10 @@ async def on_ready():
 	print('DAA-TAVEE-TARE!')
 
 with open('DVD.json', 'r') as infile:
-		data = json.load(infile)
-		TOKEN = data["token"]
-		API_KEY = data["api_key"]
-		GROUP_ID = data["group_id"]
+		json_data = json.load(infile)
+		TOKEN = json_data["token"]
+		API_KEY = json_data["api_key"]
+		GROUP_ID = json_data["group_id"]
 
 api = facebook.GraphAPI(API_KEY)
 client.run(TOKEN)
