@@ -117,8 +117,7 @@ def parseDate(timestamp):
 def addSecond(timestamp):
     # Increments a timestamp by a second, the smallest period of time specified by the timestamps.
     # Used to avoid posting the same post twice
-    time = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z")
-           + timedelta(seconds=1)
+    time = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z") + timedelta(seconds=1)       # Not sure how to format this line correctly
     return strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
