@@ -1,10 +1,12 @@
 import asyncio
 import discord
+import sys
 from facebook import GraphAPI
 from json import dump, load
 from datetime import datetime, timedelta
 from time import strftime
 
+CONFIG_FILE = 'DVD.json'
 TOKEN = ''
 FIELDS = 'type,message,story,link,created_time,full_picture,name'
 GROUP_ID = 0
@@ -14,6 +16,12 @@ CHANNEL = {}
 json_data = {}
 
 client = discord.Client()
+
+
+def fatal_err(msg='', exit_code=70):  # 70 = EX_SOFTWARE - internal error
+    print(msg, file=sys.stderr)
+    sys.exit(exit_code)
+
 
 @client.event
 async def on_message(message):
@@ -213,12 +221,29 @@ async def on_ready():
     # Discord bot stuff.  Runs once the bot is initated.
     print('DAA-TAVEE-TARE!') # If you don't know the answer to this, probably don't use this code
 
-with open('DVD.json', 'r') as infile:
-        json_data = load(infile)
-        TOKEN = json_data["token"]
-        API_KEY = json_data["api_key"]
-        GROUP_ID = json_data["group_id"]
-        # Upon startup, fetch secret numbers that don't belong on github
 
-api = GraphAPI(API_KEY)
-client.run(TOKEN)
+if __name__ == '__main__':
+    try:
+        with open(CONFIG_FILE, 'r') as infile:
+            # Upon startup, fetch secret numbers that don't belong on github
+            try:
+                json_data = load(infile)
+                TOKEN = json_data["token"]
+                API_KEY = json_data["api_key"]
+                GROUP_ID = json_data["group_id"]
+            except KeyError:
+                # 65 = EX_DATAERR - incorrect user data
+                fatal_err(
+                    exit_code=65,
+                    msg=('config file "' + CONFIG_FILE + '" does not contain'
+                         ' all required keys ("token", "api_key", "group_id")')
+                )
+    except FileNotFoundError:
+        # 66 = EX_NOINPUT - missing or unreadable input file
+        fatal_err(
+            exit_code=66,
+            msg='could not find config file "' + CONFIG_FILE + '"'
+        )
+
+    api = GraphAPI(API_KEY)
+    client.run(TOKEN)
