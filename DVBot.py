@@ -7,20 +7,18 @@ from datetime import datetime, timedelta
 from time import strftime
 
 CONFIG_FILE = 'DVD.json'
+LOG_FILE = 'DVBot.log'
+
 TOKEN = ''
-FIELDS = 'type,message,story,link,created_time,full_picture,name'
 GROUP_ID = 0
 API_KEY = ''
 CHANNEL = {}
 
+FIELDS = 'type,message,story,link,created_time,full_picture,name'
+
 json_data = {}
 
 client = discord.Client()
-
-
-def fatal_err(msg='', exit_code=70):  # 70 = EX_SOFTWARE - internal error
-    print(msg, file=sys.stderr)
-    sys.exit(exit_code)
 
 
 @client.event
@@ -33,7 +31,7 @@ async def on_message(message):
     if command == "-1":
         return
 
-    print("<- %s" % command)
+    log('recived: ' + command)
 
     if command.startswith('help'):
         embed = discord.Embed(
@@ -51,6 +49,8 @@ async def on_message(message):
             value="Sets the channel to push the Facebook feed onto. Using more than once will probably break everything.",
             inline=False,
         )
+
+        log('sending embedded message')
 
         await client.send_message(
             destination=message.channel,
@@ -72,7 +72,7 @@ async def on_message(message):
 
 async def send(msg, message):
     # Handle sending messages where the Discord API makes that obtuse
-    print("-> %s" % msg.format(message))
+    log('Sending: ' + msg.format(message))
     return await client.send_message(
         message.channel,
         msg.format(message),
@@ -219,7 +219,29 @@ def createEmbedFromPost(post):
 @client.event
 async def on_ready():
     # Discord bot stuff.  Runs once the bot is initated.
-    print('DAA-TAVEE-TARE!') # If you don't know the answer to this, probably don't use this code
+    log('bot started')
+
+
+def log(msg):
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    msg = '[' + now + '] ' + msg
+    print(msg)
+    with open(LOG_FILE, 'a') as f:
+        print(msg, file=f)
+
+
+def log_err(msg):
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    msg = '[ERROR][' + now + '] ' + msg
+    print(msg, file=sys.stderr)
+    with open(LOG_FILE, 'a') as f:
+        print(msg, file=f)
+
+
+def fatal_err(msg='', exit_code=70):  # 70 = EX_SOFTWARE - internal error
+    log_err(msg)
+    log_err('exiting with exit_code=' + str(exit_code))
+    sys.exit(exit_code)
 
 
 if __name__ == '__main__':
