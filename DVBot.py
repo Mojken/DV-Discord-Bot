@@ -4,28 +4,28 @@ import sys
 from facebook import GraphAPI
 from json import dump, load
 from datetime import datetime, timedelta
-from time import strftime
 
 CONFIG_FILE = 'DVD.json'
+LOG_FILE = 'DVBot.log'
+
 TOKEN = ''
-FIELDS = 'type,message,story,link,created_time,full_picture,name'
 GROUP_ID = 0
 API_KEY = ''
 CHANNEL = {}
+
+FIELDS = 'type,message,story,link,created_time,full_picture,name'
 
 json_data = {}
 
 client = discord.Client()
 
 
-def fatal_err(msg='', exit_code=70):  # 70 = EX_SOFTWARE - internal error
-    print(msg, file=sys.stderr)
-    sys.exit(exit_code)
-
-
 @client.event
 async def on_message(message):
-    # Catches and handles every message sent in the channels the bot has access to
+    """
+    Catches and handles every message sent in the channels the bot has access
+    to
+    """
     if message.author == client.user:
         return
 
@@ -33,7 +33,7 @@ async def on_message(message):
     if command == "-1":
         return
 
-    print("<- %s" % command)
+    log('recived: ' + command)
 
     if command.startswith('help'):
         embed = discord.Embed(
@@ -48,9 +48,12 @@ async def on_message(message):
         )
         embed.add_field(
             name=":DV: set channel",
-            value="Sets the channel to push the Facebook feed onto. Using more than once will probably break everything.",
+            value=("Sets the channel to push the Facebook feed onto. Using"
+                   " more than once will probably break everything."),
             inline=False,
         )
+
+        log('sending embedded message')
 
         await client.send_message(
             destination=message.channel,
@@ -71,8 +74,10 @@ async def on_message(message):
 
 
 async def send(msg, message):
-    # Handle sending messages where the Discord API makes that obtuse
-    print("-> %s" % msg.format(message))
+    """
+    Handle sending messages where the Discord API makes that obtuse
+    """
+    log('Sending: ' + msg.format(message))
     return await client.send_message(
         message.channel,
         msg.format(message),
@@ -80,7 +85,9 @@ async def send(msg, message):
 
 
 def getCommand(message):
-    # Strips away command prefixes (allowing for custom emoji)
+    """
+    Strips away command prefixes (allowing for custom emoji)
+    """
     command = message.content
 
     if command.startswith(':DV:'):
@@ -96,7 +103,9 @@ def getCommand(message):
 
 
 async def postLatestPost():
-    # Formats and sends the latest post to the assigned and saved channel
+    """
+    Formats and sends the latest post to the assigned and saved channel
+    """
     limit = json_data["timestamp"]
 
     data = api.get_connections(
@@ -117,27 +126,39 @@ async def postLatestPost():
 
 
 def parseDate(timestamp):
-    # Formats the given timestamp into a readable format
+    """
+    Formats the given timestamp into a readable format
+    """
     time = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z")
     return time.astimezone().strftime("%A %d %B at %H:%M")
 
 
 def addSecond(timestamp):
-    # Increments a timestamp by a second, the smallest period of time specified by the timestamps.
-    # Used to avoid posting the same post twice
-    time = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z") + timedelta(seconds=1)       # Not sure how to format this line correctly
-    return strftime("%Y-%m-%dT%H:%M:%S%z")
+    """
+    Increments a timestamp by a second, the smallest period of time specified
+    by the timestamps. Used to avoid posting the same post twice.
+    """
+    time = (datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z")
+            + timedelta(seconds=1))
+    return time.strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
 def save(var, data):
-    # Dumps all data back into the JSON file, with one variable var changed into value data
+    """
+    Dumps all data back into the JSON file, with one variable var changed into
+    value data
+    """
     json_data[var] = data
     with open('DVD.json', 'w') as outfile:
         dump(json_data, outfile)
 
 
 def createEmbedFromPost(post):
-    # The graphical front-end of our post, this beast formats embeds that represent the data graphically, based purely on what data is avaliable to display.
+    """
+    The graphical front-end of our post, this beast formats embeds that
+    represent the data graphically, based purely on what data is avaliable to
+    display.
+    """
     post_type = post["type"]
 
     if post_type == "link":
@@ -164,7 +185,6 @@ def createEmbedFromPost(post):
         if "full_picture" in post:
             embed.set_image(url=post["full_picture"]),
 
-
     elif post_type == "status":
         embed = discord.Embed(
             title=post_type.capitalize(),
@@ -178,7 +198,6 @@ def createEmbedFromPost(post):
                 value=post["message"],
                 inline=False,
             )
-
 
     elif post_type == "photo":
         if "story" in post:
@@ -210,7 +229,8 @@ def createEmbedFromPost(post):
         embed = discord.Embed(
             title="Unsupported post type",
             colour=discord.Colour(0xE57A07),
-            description="Please yell at <@!104286743737405440> for not supporting %ss yet" % post_type,
+            description=("Please yell at <@!104286743737405440> for not"
+                         " supporting %ss yet" % post_type)
         )
 
     return embed
@@ -218,8 +238,32 @@ def createEmbedFromPost(post):
 
 @client.event
 async def on_ready():
-    # Discord bot stuff.  Runs once the bot is initated.
-    print('DAA-TAVEE-TARE!') # If you don't know the answer to this, probably don't use this code
+    """
+    Discord bot stuff.  Runs once the bot is initated.
+    """
+    log('bot started')
+
+
+def log(msg):
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    msg = '[' + now + '] ' + msg
+    print(msg)
+    with open(LOG_FILE, 'a') as f:
+        print(msg, file=f)
+
+
+def log_err(msg):
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    msg = '[ERROR][' + now + '] ' + msg
+    print(msg, file=sys.stderr)
+    with open(LOG_FILE, 'a') as f:
+        print(msg, file=f)
+
+
+def fatal_err(msg='', exit_code=70):  # 70 = EX_SOFTWARE - internal error
+    log_err(msg)
+    log_err('exiting with exit_code=' + str(exit_code))
+    sys.exit(exit_code)
 
 
 if __name__ == '__main__':
