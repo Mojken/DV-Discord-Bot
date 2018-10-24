@@ -238,7 +238,9 @@ def createEmbedFromPost(post):
 
 @client.event
 async def on_ready():
-    # Discord bot stuff.  Runs once the bot is initated.
+    """
+    Discord bot stuff.  Runs once the bot is initated.
+    """
     log('bot started')
 
 
